@@ -130,59 +130,65 @@ const index = ({ nav, m_ta_id }) => {
   }, []);
 
   // Render isi detailMateriList ke console
-  useEffect(() => {
-    if (detailMateriList.length) {
-      detailMateriList.forEach((item, index) => {
-        const namaMateri = item.materi?.mataPelajaran?.nama || "(materi tidak ada)";
-        console.log(`Materi ${index + 1}: ${namaMateri}`);
+  // useEffect(() => {
+  //   if (detailMateriList.length) {
+  //     detailMateriList.forEach((item, index) => {
+  //       const namaMateri = item.materi?.mataPelajaran?.nama || "(materi tidak ada)";
+  //       console.log(`Materi ${index + 1}: ${namaMateri}`);
 
-        let lastReadTime = null;
-        let lastReadTopik = null;
+  //       let lastReadTime = null;
+  //       let lastReadTopik = null;
 
-        item.bab?.forEach((bab, babIdx) => {
-          console.log(`  Bab ${babIdx + 1}: ${bab.judul}`);
+  //       item.bab?.forEach((bab, babIdx) => {
+  //         console.log(`  Bab ${babIdx + 1}: ${bab.judul}`);
 
-          bab.topik?.forEach((topik, topikIdx) => {
-            console.log(`    Topik ${topikIdx + 1}: ${topik.judul}`);
-            if (topik.createdAt) {
-              console.log(`      Dibuat: ${topik.createdAt}`);
-            }
-            if (topik.updatedAt) {
-              console.log(`      Terakhir diupdate: ${topik.updatedAt}`);
-            }
-            if (topik.materiKesimpulan) {
-              console.log(`      Kesimpulan: ${topik.materiKesimpulan.kesimpulan}`);
-              console.log(`      Dibaca: ${topik.materiKesimpulan.dibaca}`);
-              console.log(`      Durasi: ${topik.materiKesimpulan.durasi}`);
-              // Log setiap kali topik pernah dibaca
-              if (topik.materiKesimpulan.waktuSelesai || topik.materiKesimpulan.waktuMulai) {
-                const waktu = topik.materiKesimpulan.waktuSelesai || topik.materiKesimpulan.waktuMulai;
-                console.log(`      dibaca pada ${waktu} pada topik '${topik.judul}'`);
-              }
-              // Cek waktu terakhir dibaca
-              const waktuMulai = topik.materiKesimpulan.waktuMulai;
-              const waktuSelesai = topik.materiKesimpulan.waktuSelesai;
-              let waktuTerakhir = null;
-              if (waktuSelesai) {
-                waktuTerakhir = waktuSelesai;
-              } else if (waktuMulai) {
-                waktuTerakhir = waktuMulai;
-              }
-              if (waktuTerakhir && (!lastReadTime || new Date(waktuTerakhir) > new Date(lastReadTime))) {
-                lastReadTime = waktuTerakhir;
-                lastReadTopik = topik.judul;
-              }
-            } else {
-              console.log(`      (Belum ada kesimpulan)`);
-            }
-          });
-        });
-        if (lastReadTime && lastReadTopik) {
-          console.log(`  Terakhir dibaca ${lastReadTime} pada topik '${lastReadTopik}'`);
-        }
-      });
-    }
-  }, [detailMateriList]);
+  //         bab.topik?.forEach((topik, topikIdx) => {
+  //           console.log(`    Topik ${topikIdx + 1}: ${topik.judul}`);
+  //           if (topik.createdAt) {
+  //             console.log(`      Dibuat: ${topik.createdAt}`);
+  //           }
+  //           if (topik.updatedAt) {
+  //             console.log(`      Terakhir diupdate: ${topik.updatedAt}`);
+  //           }
+  //           if (topik.materiKesimpulan) {
+  //             console.log(`      Kesimpulan: ${topik.materiKesimpulan.kesimpulan}`);
+  //             console.log(`      Dibaca: ${topik.materiKesimpulan.dibaca}`);
+  //             console.log(`      Durasi: ${topik.materiKesimpulan.durasi}`);
+  //             // Log setiap kali topik pernah dibaca
+  //             if (topik.materiKesimpulan.waktuSelesai || topik.materiKesimpulan.waktuMulai) {
+  //               const waktu = topik.materiKesimpulan.waktuSelesai || topik.materiKesimpulan.waktuMulai;
+  //               console.log(`      dibaca pada ${waktu} pada topik '${topik.judul}'`);
+  //             }
+  //             // Cek waktu terakhir dibaca
+  //             const waktuMulai = topik.materiKesimpulan.waktuMulai;
+  //             const waktuSelesai = topik.materiKesimpulan.waktuSelesai;
+  //             let waktuTerakhir = null;
+  //             if (waktuSelesai) {
+  //               waktuTerakhir = waktuSelesai;
+  //             } else if (waktuMulai) {
+  //               waktuTerakhir = waktuMulai;
+  //             }
+  //             if (waktuTerakhir && (!lastReadTime || new Date(waktuTerakhir) > new Date(lastReadTime))) {
+  //               lastReadTime = waktuTerakhir;
+  //               lastReadTopik = topik.judul;
+  //             }
+  //           } else {
+  //             console.log(`      (Belum ada kesimpulan)`);
+  //           }
+  //         });
+  //       });
+  //       if (lastReadTime && lastReadTopik) {
+  //         console.log(`  Terakhir dibaca ${lastReadTime} pada topik '${lastReadTopik}'`);
+  //       }
+  //     });
+  //   }
+  // }, [detailMateriList]);
+
+  // useEffect(() => {
+  //   if (materiData) {
+  //     console.log("ISI STATE materiData:", materiData);
+  //   }
+  // }, [materiData]);
 
   const { materi, materiLainnya, semuaTA, dataTA } = materiData;
   const datePickerRef = useRef(null);
@@ -465,12 +471,6 @@ const index = ({ nav, m_ta_id }) => {
     }
   }
 
-  useEffect(() => {
-    if (materiData) {
-      console.log("ISI STATE materiData:", materiData);
-    }
-  }, [materiData]);
-
   return (
     <Layout>
       <MyJoyride steps={steps} />
@@ -576,35 +576,35 @@ const index = ({ nav, m_ta_id }) => {
                           direction="horizontal"
                         />
                       )}
-<div className="d-flex justify-content-end gap-2 mt-3" style={{ flexWrap: isMobile ? "wrap" : "nowrap" }}>
-  <div style={{ flex: isMobile ? 1 : "unset" }}>
-    <button
-      type="button"
-      className="btn btn-outline-secondary px-4 w-100"
-      style={{
-        borderRadius: "10px",
-      }}
-      onClick={() => {
-        setTempDateRange(dateRange);
-        setShowDatePicker(false);
-      }}
-    >
-      Batal
-    </button>
-  </div>
-  <div style={{ flex: isMobile ? 1 : "unset" }}>
-    <button
-      type="button"
-      className="btn btn-primary px-4 w-100"
-      style={{
-        borderRadius: "10px",
-      }}
-      onClick={handleDone}
-    >
-      Selesai
-    </button>
-  </div>
-</div>
+                      <div className="d-flex justify-content-end gap-2 mt-3" style={{ flexWrap: isMobile ? "wrap" : "nowrap" }}>
+                        <div style={{ flex: isMobile ? 1 : "unset" }}>
+                          <button
+                            type="button"
+                            className="btn btn-outline-secondary px-4 w-100"
+                            style={{
+                              borderRadius: "10px",
+                            }}
+                            onClick={() => {
+                              setTempDateRange(dateRange);
+                              setShowDatePicker(false);
+                            }}
+                          >
+                            Batal
+                          </button>
+                        </div>
+                        <div style={{ flex: isMobile ? 1 : "unset" }}>
+                          <button
+                            type="button"
+                            className="btn btn-primary px-4 w-100"
+                            style={{
+                              borderRadius: "10px",
+                            }}
+                            onClick={handleDone}
+                          >
+                            Selesai
+                          </button>
+                        </div>
+                      </div>
 
 
                     </div>
@@ -815,7 +815,6 @@ const index = ({ nav, m_ta_id }) => {
                         }
                         const progress = totalTopik > 0 ? Math.round((topikDibaca / totalTopik) * 100) : 0;
 
-                        // --- BADGE LOGIC ---
                         // Tampilkan badge jika ada topik baru (createdAt < 3 hari & belum dibaca oleh user)
                         let showNewBadge = false;
                         if (detail && Array.isArray(detail.bab)) {
@@ -837,7 +836,6 @@ const index = ({ nav, m_ta_id }) => {
                             data-joyride="card-materi"
                           >
                             <div className="card-kelas-ss card-materi-ss card card-ss px-2 pt-2 position-relative">
-                              {/* BADGE TOPIK BARU */}
                               {showNewBadge && user?.role !== "guru" && user?.role !== "admin" && (
                                 <span className="badge bg-warning text-white rounded-pill position-absolute" style={{ right: 10, top: 10, zIndex: 2 }}>
                                   Topik Baru
@@ -879,11 +877,11 @@ const index = ({ nav, m_ta_id }) => {
                                       <p className="mb-0 ms-2">{d.meta?.babCount} BAB</p>
                                       {user?.role !== "guru" && (
                                         <>
-                                          {console.log("Render label untuk non-guru:", {
+                                          {/* {console.log("Render label untuk non-guru:", {
                                             role: user?.role,
                                             tingkat: d?.tingkat,
                                             jurusanKode: d?.jurusan?.kode,
-                                          })}
+                                          })} */}
                                           <div className="label-ss bg-light-primary color-primary fs-12-ss fw-bold rounded-pill ms-2">
                                             Kelas {d?.tingkat} {d?.jurusan?.kode ? d?.jurusan?.kode : ""}
                                           </div>

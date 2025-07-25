@@ -139,13 +139,13 @@ const index = ({ id }) => {
     getDetailMateriData();
   }, []);
 
-  useEffect(() => {
-    if (detailMateriData) {
-      console.log("📦 DETAIL MATERI:", detailMateriData);
-      console.log("📘 MATERI:", detailMateriData.materi);
-      console.log("📚 DAFTAR BAB:", detailMateriData.bab);
-    }
-  }, [detailMateriData]);
+  // useEffect(() => {
+  //   if (detailMateriData) {
+  //     console.log("DETAIL MATERI:", detailMateriData);
+  //     console.log("MATERI:", detailMateriData.materi);
+  //     console.log("DAFTAR BAB:", detailMateriData.bab);
+  //   }
+  // }, [detailMateriData]);
 
   const steps = [
     {
@@ -410,7 +410,7 @@ const index = ({ id }) => {
                     <p className="mb-0 fs-18-ss fw-bold">{bab?.length || 0} BAB</p>
                   </div>
 
-                  {/* Progress Section: hanya untuk siswa/murid (bukan guru/admin) jika ada topik */}
+                  {/* Progress Section */}
                   {(user?.role !== "guru" && user?.role !== "admin") && (
                     <div className="text-primary d-flex justify-content-center flex-column flex-fill min-width-0 ms-2 ms-lg-4">
                       {totalTopik > 0 && (
@@ -590,7 +590,6 @@ const index = ({ id }) => {
                     {d.topik?.length ? (
                       <>
                         {d.topik?.map((e, idx) => {
-                          // New logic: use lock and materiKesimpulan
                           const isLocked = !!e.lock;
                           const isNew = !isLocked && !e.materiKesimpulan;
                           const isOpened = !isLocked && !!e.materiKesimpulan;
