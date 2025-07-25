@@ -6,7 +6,7 @@ smarteschool-client-smkn1cibinong/
 │   └── smartschool/
 │       └── materi/
 │           ├── [id]/
-│           │   └── index.js     # Halaman detail materi berdasarkan ID
-│           └── index.js         # Halaman daftar materi
-└── package.json                 # Konfigurasi dependencies dan scripts
+│           │   └── index.js
+│           └── index.js
+└── package.json
 ```
