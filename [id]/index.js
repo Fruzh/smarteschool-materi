@@ -410,50 +410,65 @@ const index = ({ id }) => {
                     <p className="mb-0 fs-18-ss fw-bold">{bab?.length || 0} BAB</p>
                   </div>
 
-                  {/* Progress Section: hanya untuk siswa/murid (bukan guru/admin) */}
+                  {/* Progress Section: hanya untuk siswa/murid (bukan guru/admin) jika ada topik */}
                   {(user?.role !== "guru" && user?.role !== "admin") && (
-                    <div className="text-primary d-flex justify-content-center flex-column flex-fill min-width-0">
-                      <div className="d-flex align-items-center mb-2 flex-wrap gap-3">
-                        <div className="d-flex align-items-center">
-                          <FaLightbulb />
-                          <p className="mb-0 ms-2 text-nowrap">{totalTopik} Topik</p>
-                        </div>
-                        <div className="d-flex align-items-center">
-                          <p className="mb-0 text-nowrap">{topikDibaca} Selesai Dibaca</p>
-                        </div>
-                      </div>
-                      <div className="d-flex align-items-center w-100">
-                        <div
-                          className="progress flex-grow-1"
-                          style={{ height: 8, borderRadius: 8, background: '#e9ecef', width: '100%', maxWidth: '300px' }}
-                        >
-                          <div
-                            className="progress-bar bg-primary"
-                            role="progressbar"
-                            style={{ width: `${progress}%`, borderRadius: 8 }}
-                            aria-valuenow={progress}
-                            aria-valuemin="0"
-                            aria-valuemax="100"
-                          ></div>
-                        </div>
-                        <span className="ms-3 fw-bold text-nowrap" style={{ minWidth: 40, color: '#2c3252' }}>
-                          {progress}%
-                        </span>
-                      </div>
+                    <div className="text-primary d-flex justify-content-center flex-column flex-fill min-width-0 ms-2 ms-lg-4">
+                      {totalTopik > 0 && (
+                        <>
+                          <div className="d-flex align-items-center flex-wrap gap-3 fw-bold">
+                            <div className="d-flex align-items-center">
+                              <FaLightbulb />
+                              <p className="mb-0 ms-2 text-nowrap">{totalTopik} Topik</p>
+                            </div>
+                            <div>
+                              -
+                            </div>
+                            <div className="d-flex align-items-center">
+                              <p className="mb-0 text-nowrap">{topikDibaca} Selesai Dibaca</p>
+                            </div>
+                          </div>
+                          <div className="d-flex align-items-center w-100">
+                            <div
+                              className="progress flex-grow-1"
+                              style={{ height: 8, borderRadius: 8, background: '#e9ecef', width: '100%', maxWidth: '300px' }}
+                            >
+                              <div
+                                className="progress-bar bg-primary"
+                                role="progressbar"
+                                style={{ width: `${progress}%`, borderRadius: 8 }}
+                                aria-valuenow={progress}
+                                aria-valuemin="0"
+                                aria-valuemax="100"
+                              ></div>
+                            </div>
+                            <span className="ms-3 fw-bold text-nowrap" style={{ minWidth: 40, color: '#2c3252' }}>
+                              {progress}%
+                            </span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
 
                   {/* Search Form */}
-                  <div className="d-flex align-items-center flex-shrink-0" style={{ minWidth: '250px' }}>
-                    <form onSubmit={e => e.preventDefault()}>
+                  <div
+                    className={`d-flex align-items-center ${user?.role !== "guru" && user?.role !== "admin" ? 'ms-lg-auto' : 'flex-shrink-0'}`}
+                    style={{ minWidth: '250px' }}
+                  >
+                    <form onSubmit={e => e.preventDefault()} className="w-100">
                       <input
                         type="text"
-                        className="form-control form-search-perpustakaan fs-5 fw-bold ms-4 pe-sm-0 pe-4"
+                        className="form-control form-search-perpustakaan fw-bold w-100 ms-2 ms-sm-3 ms-lg-4 pe-3 pe-sm-2 pe-lg-4 fs-6 fs-sm-5"
                         placeholder="Cari Materi..."
                         name="cariMateri"
                         value={searchMateri}
                         onChange={e => setSearchMateri(e.target.value)}
+                        style={{
+                          minHeight: '45px',
+                          maxWidth: '100%',
+                        }}
                       />
+
                       <button type="submit" className="d-none">Cari</button>
                     </form>
                   </div>
@@ -652,7 +667,7 @@ const index = ({ id }) => {
                                               Selesai
                                             </span>
                                           )}
-                                          {isNew && (
+                                          {isNew && user?.role === "siswa" && (
                                             <span className="badge bg-soft-warning color-warning rounded-pill px-3 py-2 small">
                                               <i className="fas fa-sparkles"></i>
                                               Baru

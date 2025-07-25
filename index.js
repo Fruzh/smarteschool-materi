@@ -2,7 +2,7 @@ import Link from "next/link";
 import Layout from "../../../components/Layout/Layout";
 import AnimatePage from "../../../components/Shared/AnimatePage/AnimatePage";
 import getConfig from "next/config";
-import { FaBook, FaPen, FaPlus, FaTrashAlt } from "react-icons/fa";
+import { FaBook, FaPen, FaPlus, FaTrashAlt, FaRegCalendarAlt } from "react-icons/fa";
 import { deleteMateri, getMateri } from "../../../client/MateriClient";
 import { getDetailMateri } from "../../../client/MateriClient";
 import { useEffect, useState, useRef } from "react";
@@ -21,10 +21,22 @@ import useTa from "hooks/useTa";
 import SelectShared from "components/Shared/SelectShared/SelectShared";
 import ModalUbahDataDashboard from "components/Layout/ModalUbahDataDashboard";
 import { Empty } from "antd";
-import { DateRangePicker } from 'react-date-range';
+
+import { DateRangePicker, DateRange } from 'react-date-range';
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
 import { format } from 'date-fns';
+
+function useBreakpointBelow(breakpoint = 1366) {
+  const [breakpointBelow, setBreakpointBelow] = useState(false);
+  useEffect(() => {
+    const checkWXGA = () => setBreakpointBelow(window.innerWidth < breakpoint);
+    checkWXGA();
+    window.addEventListener('resize', checkWXGA);
+    return () => window.removeEventListener('resize', checkWXGA);
+  }, [breakpoint]);
+  return breakpointBelow;
+}
 
 const index = ({ nav, m_ta_id }) => {
   const { joyrideConfig, setJoyrideConfig } = useJoyride();
@@ -51,10 +63,127 @@ const index = ({ nav, m_ta_id }) => {
   ]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [materiData, setMateriData] = useState({});
+  const isWXGA = useBreakpointBelow();
+  const isMobile = useBreakpointBelow(576);
+  const [detailMateriList, setDetailMateriList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editData, setEditData] = useState(null);
-  // State untuk progress per materi
+  const [sortTopik, setSortTopik] = useState('desc');
   const [progressMap, setProgressMap] = useState({});
+
+  const getMateriData = async () => {
+    setLoading(true);
+
+    try {
+      const { data } = await getMateri({ m_ta_id: tipeTa?.value || ta?.id });
+
+      if (data && Array.isArray(data.materi)) {
+        setMateriData(data);
+
+        const detailPromises = data.materi.map((m) => getDetailMateri(m.id));
+        const detailResults = await Promise.all(detailPromises);
+
+        setDetailMateriList(detailResults.map((r) => r.data));
+
+        const newProgressMap = {};
+        detailResults.forEach((res, idx) => {
+          const detail = res?.data;
+
+          if (detail && Array.isArray(detail.bab)) {
+            const totalTopik = detail.bab.reduce(
+              (acc, bab) => acc + (bab.topik?.length || 0),
+              0
+            );
+
+            const totalTopikSelesai = detail.bab.reduce((acc, bab) => {
+              const selesai = (bab.topik || []).filter(
+                (topik) => topik?.materiKesimpulan?.dibaca === 1
+              ).length;
+              return acc + selesai;
+            }, 0);
+
+            const progress =
+              totalTopik === 0
+                ? 0
+                : Math.round((totalTopikSelesai / totalTopik) * 100);
+
+            newProgressMap[data.materi[idx]?.id] = progress;
+          } else {
+            newProgressMap[data.materi[idx]?.id] = 0;
+          }
+        });
+
+        setProgressMap(newProgressMap);
+      } else {
+        setMateriData(null);
+        setProgressMap({});
+      }
+    } catch (error) {
+      console.error("Gagal mengambil data materi:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    getMateriData();
+  }, []);
+
+  // Render isi detailMateriList ke console
+  useEffect(() => {
+    if (detailMateriList.length) {
+      detailMateriList.forEach((item, index) => {
+        const namaMateri = item.materi?.mataPelajaran?.nama || "(materi tidak ada)";
+        console.log(`Materi ${index + 1}: ${namaMateri}`);
+
+        let lastReadTime = null;
+        let lastReadTopik = null;
+
+        item.bab?.forEach((bab, babIdx) => {
+          console.log(`  Bab ${babIdx + 1}: ${bab.judul}`);
+
+          bab.topik?.forEach((topik, topikIdx) => {
+            console.log(`    Topik ${topikIdx + 1}: ${topik.judul}`);
+            if (topik.createdAt) {
+              console.log(`      Dibuat: ${topik.createdAt}`);
+            }
+            if (topik.updatedAt) {
+              console.log(`      Terakhir diupdate: ${topik.updatedAt}`);
+            }
+            if (topik.materiKesimpulan) {
+              console.log(`      Kesimpulan: ${topik.materiKesimpulan.kesimpulan}`);
+              console.log(`      Dibaca: ${topik.materiKesimpulan.dibaca}`);
+              console.log(`      Durasi: ${topik.materiKesimpulan.durasi}`);
+              // Log setiap kali topik pernah dibaca
+              if (topik.materiKesimpulan.waktuSelesai || topik.materiKesimpulan.waktuMulai) {
+                const waktu = topik.materiKesimpulan.waktuSelesai || topik.materiKesimpulan.waktuMulai;
+                console.log(`      dibaca pada ${waktu} pada topik '${topik.judul}'`);
+              }
+              // Cek waktu terakhir dibaca
+              const waktuMulai = topik.materiKesimpulan.waktuMulai;
+              const waktuSelesai = topik.materiKesimpulan.waktuSelesai;
+              let waktuTerakhir = null;
+              if (waktuSelesai) {
+                waktuTerakhir = waktuSelesai;
+              } else if (waktuMulai) {
+                waktuTerakhir = waktuMulai;
+              }
+              if (waktuTerakhir && (!lastReadTime || new Date(waktuTerakhir) > new Date(lastReadTime))) {
+                lastReadTime = waktuTerakhir;
+                lastReadTopik = topik.judul;
+              }
+            } else {
+              console.log(`      (Belum ada kesimpulan)`);
+            }
+          });
+        });
+        if (lastReadTime && lastReadTopik) {
+          console.log(`  Terakhir dibaca ${lastReadTime} pada topik '${lastReadTopik}'`);
+        }
+      });
+    }
+  }, [detailMateriList]);
+
   const { materi, materiLainnya, semuaTA, dataTA } = materiData;
   const datePickerRef = useRef(null);
 
@@ -86,40 +215,6 @@ const index = ({ nav, m_ta_id }) => {
       nama: data.nama,
       id: data.id,
     });
-  };
-
-  const getMateriData = async () => {
-    setLoading(true);
-    const { data } = await getMateri({ m_ta_id: tipeTa?.value || ta.id });
-    if (data) {
-      setMateriData(data);
-      // Setelah data materi didapat, fetch detail untuk progress
-      if (data.materi && Array.isArray(data.materi)) {
-        // Ambil detail semua materi secara paralel
-        const detailPromises = data.materi.map((m) => getDetailMateri(m.id));
-        const detailResults = await Promise.all(detailPromises);
-        // Hitung progress per materi
-        const newProgressMap = {};
-        detailResults.forEach((res, idx) => {
-          const detail = res?.data;
-          if (detail && Array.isArray(detail.bab)) {
-            const totalTopik = detail.bab.reduce((acc, bab) => acc + (bab.topik?.length || 0), 0);
-            const totalTopikSelesai = detail.bab.reduce((acc, bab) => {
-              const selesai = (bab.topik || []).filter(
-                (topik) => topik.materiKesimpulan && topik.materiKesimpulan.dibaca === 1
-              ).length;
-              return acc + selesai;
-            }, 0);
-            const progress = totalTopik === 0 ? 0 : Math.round((totalTopikSelesai / totalTopik) * 100);
-            newProgressMap[data.materi[idx].id] = progress;
-          } else {
-            newProgressMap[data.materi[idx].id] = 0;
-          }
-        });
-        setProgressMap(newProgressMap);
-      }
-      setLoading(false);
-    }
   };
 
   const navItems = [
@@ -239,7 +334,7 @@ const index = ({ nav, m_ta_id }) => {
     const handleClickOutside = (event) => {
       if (datePickerRef.current && !datePickerRef.current.contains(event.target)) {
         setShowDatePicker(false);
-        setTempDateRange(dateRange); // Revert to previous saved dates
+        setTempDateRange(dateRange);
       }
     };
 
@@ -260,6 +355,38 @@ const index = ({ nav, m_ta_id }) => {
   const isGuruOrAdmin = user?.role === "guru" || user?.role === "admin";
   let filteredMateri = materi || [];
   if (!isGuruOrAdmin) {
+    // Sorting berdasarkan createdAt topik terbaru/terlama
+    if (sortTopik) {
+      filteredMateri = filteredMateri.slice().sort((a, b) => {
+        // Ambil detail materi
+        const detailA = detailMateriList.find((item) => item?.materi?.id === a.id);
+        const detailB = detailMateriList.find((item) => item?.materi?.id === b.id);
+        // Ambil createdAt topik paling baru/awal dari semua bab
+        const getTopikCreatedAt = (detail, mode) => {
+          if (!detail || !Array.isArray(detail.bab)) return null;
+          let allTopik = [];
+          detail.bab.forEach(bab => {
+            if (Array.isArray(bab.topik)) allTopik = allTopik.concat(bab.topik);
+          });
+          if (!allTopik.length) return null;
+          if (mode === 'desc') {
+            // terbaru
+            return allTopik.reduce((max, t) => t.createdAt && (!max || new Date(t.createdAt) > new Date(max)) ? t.createdAt : max, null);
+          } else {
+            // terlama
+            return allTopik.reduce((min, t) => t.createdAt && (!min || new Date(t.createdAt) < new Date(min)) ? t.createdAt : min, null);
+          }
+        };
+        const aCreated = getTopikCreatedAt(detailA, sortTopik);
+        const bCreated = getTopikCreatedAt(detailB, sortTopik);
+        if (!aCreated && !bCreated) return 0;
+        if (!aCreated) return 1;
+        if (!bCreated) return -1;
+        return sortTopik === 'desc'
+          ? new Date(bCreated) - new Date(aCreated)
+          : new Date(aCreated) - new Date(bCreated);
+      });
+    }
     if (searchMateri) {
       filteredMateri = filteredMateri.filter((d) =>
         d.mataPelajaran?.nama?.toLowerCase().includes(searchMateri.toLowerCase())
@@ -277,21 +404,64 @@ const index = ({ nav, m_ta_id }) => {
       });
     }
     if (statusMateri) {
-      filteredMateri = filteredMateri.filter((d) =>
-        statusMateri === "sudah"
-          ? d.status === "sudah"
-          : d.status === "belum"
-      );
+      filteredMateri = filteredMateri.filter((d) => {
+        // Cari detail materi yang sesuai
+        const detail = detailMateriList.find((item) => item?.materi?.id === d.id);
+        let totalTopik = 0;
+        let topikDibaca = 0;
+        if (detail && Array.isArray(detail.bab)) {
+          totalTopik = detail.bab.reduce((acc, bab) => acc + (bab.topik?.length || 0), 0);
+          topikDibaca = detail.bab.reduce(
+            (acc, bab) =>
+              acc +
+              (bab.topik?.filter(
+                (topik) =>
+                  topik?.materiKesimpulan?.waktuMulai ||
+                  topik?.materiKesimpulan?.waktuSelesai
+              ).length || 0),
+            0
+          );
+        }
+        const progress = totalTopik > 0 ? Math.round((topikDibaca / totalTopik) * 100) : 0;
+        if (statusMateri === "sudah") {
+          return progress === 100;
+        } else if (statusMateri === "belum") {
+          return totalTopik > 0 && progress < 100;
+        }
+        return true;
+      });
     }
-    if (dateRange[0].startDate) {
-      filteredMateri = filteredMateri.filter((d) =>
-        d.tanggal && d.tanggal >= format(dateRange[0].startDate, 'yyyy-MM-dd')
-      );
-    }
-    if (dateRange[0].endDate) {
-      filteredMateri = filteredMateri.filter((d) =>
-        d.tanggal && d.tanggal <= format(dateRange[0].endDate, 'yyyy-MM-dd')
-      );
+
+    if (dateRange[0].startDate && dateRange[0].endDate) {
+      filteredMateri = filteredMateri.filter((d) => {
+        const detail = detailMateriList.find((item) => item?.materi?.id === d.id);
+        if (!detail || !Array.isArray(detail.bab)) return false;
+        const start = new Date(format(dateRange[0].startDate, 'yyyy-MM-dd'));
+        const end = new Date(format(dateRange[0].endDate, 'yyyy-MM-dd'));
+        const startDate = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+        const endDate = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+
+        let found = false;
+        detail.bab.forEach((bab) => {
+          if (Array.isArray(bab.topik)) {
+            bab.topik.forEach((topik) => {
+              if (topik.materiKesimpulan) {
+                const waktuMulai = topik.materiKesimpulan.waktuMulai;
+                const waktuSelesai = topik.materiKesimpulan.waktuSelesai;
+                const waktuArr = [waktuMulai, waktuSelesai].filter(Boolean);
+                waktuArr.forEach((waktu) => {
+                  const tgl = new Date(waktu);
+                  const tglDate = new Date(tgl.getFullYear(), tgl.getMonth(), tgl.getDate());
+                  if (tglDate >= startDate && tglDate <= endDate) {
+                    found = true;
+                  }
+                });
+              }
+            });
+          }
+        });
+        return found;
+      });
     }
   }
 
@@ -309,9 +479,158 @@ const index = ({ nav, m_ta_id }) => {
           {!isGuruOrAdmin && (
             <aside className="col-lg-3 mb-4">
               <div className="card card-ss p-4" style={{ borderRadius: 24, minHeight: 300 }}>
+                {/* Sort Topik */}
                 <div className="mb-4">
-                  <div className="fw-bold fs-4 mb-3" style={{ color: '#2c3252' }}>Status</div>
-                  <div className="form-check mb-3">
+                  <div className="fw-bold fs-5 mb-3" style={{ color: '#2c3252' }}>Urutkan</div>
+                  <div className="form-check mb-3 ms-2">
+                    <input
+                      className="form-check-input"
+                      type="radio"
+                      name="sortTopik"
+                      id="sortTerbaru"
+                      value="desc"
+                      checked={sortTopik === 'desc'}
+                      onChange={() => setSortTopik('desc')}
+                    />
+                    <label className="form-check-label fw-bold" htmlFor="sortTerbaru" style={{ color: sortTopik === 'desc' ? '#2c3252' : '#a0a4b8' }}>
+                      Terbaru
+                    </label>
+                  </div>
+                  <div className="form-check ms-2">
+                    <input
+                      className="form-check-input"
+                      type="radio"
+                      name="sortTopik"
+                      id="sortTerlama"
+                      value="asc"
+                      checked={sortTopik === 'asc'}
+                      onChange={() => setSortTopik('asc')}
+                    />
+                    <label className="form-check-label fw-bold" htmlFor="sortTerlama" style={{ color: sortTopik === 'asc' ? '#2c3252' : '#a0a4b8' }}>
+                      Terlama
+                    </label>
+                  </div>
+                </div>
+
+                <div className="position-relative mb-4">
+                  <label className="fw-bold fs-6 mb-2" style={{ color: '#2c3252' }}>Dikerjakan pada</label>
+                  <div className="position-relative">
+                    <FaRegCalendarAlt
+                      className="position-absolute"
+                      style={{
+                        left: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: '#6c757d',
+                        fontSize: '1.2rem',
+                        pointerEvents: 'none',
+                        zIndex: 2,
+                      }}
+                    />
+
+                    <input
+                      type="text"
+                      className="form-control fw-semibold text-dark border rounded ps-5 py-2"
+                      value={
+                        dateRange[0].startDate && dateRange[0].endDate
+                          ? `${format(dateRange[0].startDate, 'dd/MM/yyyy')} - ${format(dateRange[0].endDate, 'dd/MM/yyyy')}`
+                          : ''
+                      }
+                      placeholder="Pilih Rentang Tanggal"
+                      onClick={() => setShowDatePicker(!showDatePicker)}
+                      readOnly
+                      style={{
+                        cursor: 'pointer',
+                        backgroundColor: '#fff',
+                        paddingLeft: '40px', // ruang untuk icon kiri
+                        fontSize: isWXGA ? '14px' : 'inherit',
+                      }}
+                    />
+                  </div>
+
+
+                  {showDatePicker && (
+                    <div
+                      className="position-absolute mt-2 border shadow rounded bg-white p-3"
+                      style={{
+                        zIndex: 1000,
+                        width: isWXGA ? 'fit-content' : 'auto',
+                        maxWidth: isWXGA ? '95vw' : 'none'
+                      }}
+                      ref={datePickerRef}
+                    >
+                      {isWXGA ? (
+                        <DateRange
+                          editableDateInputs={true}
+                          onChange={item => setTempDateRange([item.selection])}
+                          moveRangeOnFirstSelection={false}
+                          ranges={tempDateRange}
+                        />
+                      ) : (
+                        <DateRangePicker
+                          onChange={item => setTempDateRange([item.selection])}
+                          showSelectionPreview={true}
+                          moveRangeOnFirstSelection={false}
+                          months={2}
+                          ranges={tempDateRange}
+                          direction="horizontal"
+                        />
+                      )}
+<div className="d-flex justify-content-end gap-2 mt-3" style={{ flexWrap: isMobile ? "wrap" : "nowrap" }}>
+  <div style={{ flex: isMobile ? 1 : "unset" }}>
+    <button
+      type="button"
+      className="btn btn-outline-secondary px-4 w-100"
+      style={{
+        borderRadius: "10px",
+      }}
+      onClick={() => {
+        setTempDateRange(dateRange);
+        setShowDatePicker(false);
+      }}
+    >
+      Batal
+    </button>
+  </div>
+  <div style={{ flex: isMobile ? 1 : "unset" }}>
+    <button
+      type="button"
+      className="btn btn-primary px-4 w-100"
+      style={{
+        borderRadius: "10px",
+      }}
+      onClick={handleDone}
+    >
+      Selesai
+    </button>
+  </div>
+</div>
+
+
+                    </div>
+                  )}
+
+                  {(dateRange[0].startDate && dateRange[0].endDate) && (
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        className="btn btn-link text-danger fw-medium p-0 d-inline-flex align-items-center gap-1"
+                        onClick={() =>
+                          setDateRange([{ startDate: null, endDate: null, key: 'selection' }])
+                        }
+                        style={{ fontSize: 14, textDecoration: 'none' }}
+                      >
+                        <FaTrashAlt size={15} className="ms-2" />
+                        Hapus Rentang Tanggal
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Status Materi */}
+                <div className="mb-2">
+                  <div className="fw-bold fs-5 mb-3" style={{ color: '#2c3252' }}>Status</div>
+                  <div className="form-check mb-3 ms-2">
                     <input
                       className="form-check-input"
                       type="radio"
@@ -325,7 +644,7 @@ const index = ({ nav, m_ta_id }) => {
                       Semua
                     </label>
                   </div>
-                  <div className="form-check mb-3">
+                  <div className="form-check mb-3 ms-2">
                     <input
                       className="form-check-input"
                       type="radio"
@@ -339,7 +658,7 @@ const index = ({ nav, m_ta_id }) => {
                       Belum Selesai
                     </label>
                   </div>
-                  <div className="form-check">
+                  <div className="form-check ms-2">
                     <input
                       className="form-check-input"
                       type="radio"
@@ -354,52 +673,8 @@ const index = ({ nav, m_ta_id }) => {
                     </label>
                   </div>
                 </div>
-                <div className="mb-2">
-                  <div className="fw-bold fs-4 mb-2" style={{ color: '#2c3252' }}>Pilih Tanggal</div>
-                  <div className="input-group">
-                    <input
-                      type="text"
-                      className="form-control fw-bold"
-                      value={dateRange[0].startDate && dateRange[0].endDate
-                        ? `${format(dateRange[0].startDate, 'dd/MM/yyyy')} - ${format(dateRange[0].endDate, 'dd/MM/yyyy')}`
-                        : 'Pilih Rentang Tanggal'}
-                      onClick={() => setShowDatePicker(!showDatePicker)}
-                      readOnly
-                      style={{ cursor: 'pointer' }}
-                    />
-                  </div>
-                  {showDatePicker && (
-                    <div className="position-absolute" style={{ zIndex: 1000 }} ref={datePickerRef}>
-                      <DateRangePicker
-                        onChange={item => setTempDateRange([item.selection])}
-                        showSelectionPreview={true}
-                        moveRangeOnFirstSelection={false}
-                        months={2}
-                        ranges={tempDateRange}
-                        direction="horizontal"
-                      />
-                      <div className="d-flex justify-content-end mt-2">
-                        <button
-                          type="button"
-                          className="btn btn-primary"
-                          onClick={handleDone}
-                        >
-                          Done
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {(dateRange[0].startDate || dateRange[0].endDate) && (
-                    <button
-                      type="button"
-                      className="btn btn-link p-0 mt-2"
-                      onClick={() => setDateRange([{ startDate: null, endDate: null, key: 'selection' }])}
-                      style={{ fontSize: 13 }}
-                    >
-                      Hapus Range Tanggal
-                    </button>
-                  )}
-                </div>
+
+
               </div>
             </aside>
           )}
@@ -427,10 +702,21 @@ const index = ({ nav, m_ta_id }) => {
                         data-bs-toggle="dropdown"
                         aria-expanded="false"
                         data-joyride="dropdown-perpustakaan"
-                        style={{ paddingTop: 30, paddingRight: 40, paddingBottom: 30 }}
+                        style={{
+                          paddingTop: isMobile ? 15 : 30,
+                          paddingRight: isMobile ? 20 : 40,
+                          paddingBottom: isMobile ? 15 : 30,
+                        }}
                       >
-                        <div className="dropdown-toggle dropdown-search-perpustakaan-toggle border-start border-5 border-secondary border-light-secondary-ss ps-4 fs-5 fw-bold color-dark pointer"
-                          style={{ width: "200px", display: "inline-block", textAlign: "center" }}
+                        <div
+                          className="dropdown-toggle dropdown-search-perpustakaan-toggle border-start border-5 border-secondary border-light-secondary-ss fw-bold color-dark pointer"
+                          style={{
+                            width: isMobile ? "160px" : "200px",
+                            display: "inline-block",
+                            textAlign: "center",
+                            fontSize: isMobile ? "16px" : "1.25rem",
+                            paddingLeft: isMobile ? "1rem" : "1.5rem",
+                          }}
                         >
                           {muatanMateri === "produktif"
                             ? "Produktif"
@@ -495,35 +781,83 @@ const index = ({ nav, m_ta_id }) => {
             {(nav == undefined || nav === "materi") && (
               <div className="row g-4">
                 {loading && <CardKelasSkeleton count={7} />}
-                {filteredMateri?.length ? (
+                {filteredMateri?.length > 0 && (
                   <>
                     {!loading &&
                       filteredMateri?.map((d, idx) => {
+                        // Cari detail materi yang sesuai
+                        const detail = detailMateriList.find((item) => item?.materi?.id === d.id);
+                        let totalTopik = 0;
+                        let topikDibaca = 0;
+                        if (detail && Array.isArray(detail.bab)) {
+                          totalTopik = detail.bab.reduce((acc, bab) => acc + (bab.topik?.length || 0), 0);
+                          topikDibaca = detail.bab.reduce(
+                            (acc, bab) =>
+                              acc +
+                              (bab.topik?.filter(
+                                (topik) =>
+                                  topik?.materiKesimpulan?.waktuMulai ||
+                                  topik?.materiKesimpulan?.waktuSelesai
+                              ).length || 0),
+                            0
+                          );
+
+                          detail.bab.forEach((bab) => {
+                            if (Array.isArray(bab.topik)) {
+                              bab.topik.forEach((topik) => {
+                                if (topik?.materiKesimpulan?.waktuSelesai || topik?.materiKesimpulan?.waktuMulai) {
+                                  const waktu = topik?.materiKesimpulan?.waktuSelesai || topik?.materiKesimpulan?.waktuMulai;
+                                  // console.log(`dibaca pada ${waktu} pada topik '${topik?.judul || ''}'`);
+                                }
+                              });
+                            }
+                          });
+                        }
+                        const progress = totalTopik > 0 ? Math.round((topikDibaca / totalTopik) * 100) : 0;
+
+                        // --- BADGE LOGIC ---
+                        // Tampilkan badge jika ada topik baru (createdAt < 3 hari & belum dibaca oleh user)
+                        let showNewBadge = false;
+                        if (detail && Array.isArray(detail.bab)) {
+                          const now = new Date();
+                          const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+                          const newTopik = detail.bab.flatMap(bab => (bab.topik || [])).filter(topik => {
+                            if (!topik.createdAt) return false;
+                            const created = new Date(topik.createdAt);
+                            const isBaru = created >= threeDaysAgo && created <= now;
+                            const sudahDibaca = topik.materiKesimpulan && (topik.materiKesimpulan.waktuMulai || topik.materiKesimpulan.waktuSelesai);
+                            return isBaru && !sudahDibaca;
+                          });
+                          showNewBadge = newTopik.length > 0;
+                        }
                         return (
                           <div
                             className="col-md-4"
                             key={`${idx}-${new Date().getTime()}`}
                             data-joyride="card-materi"
                           >
-                            <div className="card-kelas-ss card-materi-ss card card-ss px-2 pt-2">
-                              {(user?.role == "guru" ||
-                                user?.role == "admin") && (
-                                  <div
-                                    className="rounded-circle shadow-primary-ss position-absolute pointer d-flex justify-content-center align-items-center bg-white"
-                                    style={{
-                                      right: "3%",
-                                      top: "6%",
-                                      width: "40px",
-                                      height: "40px",
-                                      zIndex: 1,
-                                    }}
-                                    onClick={() =>
-                                      handleDeleteMateriLainnya(d.id)
-                                    }
-                                  >
-                                    <FaTrashAlt color={"#fc544b"} />
-                                  </div>
-                                )}
+                            <div className="card-kelas-ss card-materi-ss card card-ss px-2 pt-2 position-relative">
+                              {/* BADGE TOPIK BARU */}
+                              {showNewBadge && user?.role !== "guru" && user?.role !== "admin" && (
+                                <span className="badge bg-warning text-white rounded-pill position-absolute" style={{ right: 10, top: 10, zIndex: 2 }}>
+                                  Topik Baru
+                                </span>
+                              )}
+                              {(user?.role == "guru" || user?.role == "admin") && (
+                                <div
+                                  className="rounded-circle shadow-primary-ss position-absolute pointer d-flex justify-content-center align-items-center bg-white"
+                                  style={{
+                                    right: "3%",
+                                    top: "6%",
+                                    width: "40px",
+                                    height: "40px",
+                                    zIndex: 1,
+                                  }}
+                                  onClick={() => handleDeleteMateriLainnya(d.id)}
+                                >
+                                  <FaTrashAlt color="#fc544b" />
+                                </div>
+                              )}
                               <Link
                                 href={`${ssURL}/materi/[id]`}
                                 as={`${ssURL}/materi/${d.id}`}
@@ -534,10 +868,7 @@ const index = ({ nav, m_ta_id }) => {
                                       <h5 className="mb-1 fw-black">{`${d.mataPelajaran?.nama}`}</h5>
                                       <p className="m-0 fw-semibold">
                                         {user?.role === "guru"
-                                          ? `Kelas ${d?.tingkat} ${d?.mataPelajaran?.kelompok == "C"
-                                            ? d?.jurusan?.kode
-                                            : ""
-                                          }`
+                                          ? `Kelas ${d?.tingkat} ${d?.mataPelajaran?.kelompok == "C" ? d?.jurusan?.kode : ""}`
                                           : d?.mataPelajaran?.user?.nama}
                                       </p>
                                     </div>
@@ -545,24 +876,28 @@ const index = ({ nav, m_ta_id }) => {
                                   <div className="card-footer card-footer-ss card-kelas-footer py-3 d-flex flex-column">
                                     <div className="d-flex align-items-center mb-2">
                                       <FaBook />
-                                      <p className="mb-0 ms-2">
-                                        {d.meta?.babCount} BAB
-                                      </p>
+                                      <p className="mb-0 ms-2">{d.meta?.babCount} BAB</p>
                                       {user?.role !== "guru" && (
-                                        <div className="label-ss bg-light-primary color-primary fs-12-ss fw-bold rounded-pill ms-2">
-                                          Kelas {d?.tingkat}{" "}
-                                          {d?.jurusan?.kode
-                                            ? d?.jurusan?.kode
-                                            : ""}
-                                        </div>
+                                        <>
+                                          {console.log("Render label untuk non-guru:", {
+                                            role: user?.role,
+                                            tingkat: d?.tingkat,
+                                            jurusanKode: d?.jurusan?.kode,
+                                          })}
+                                          <div className="label-ss bg-light-primary color-primary fs-12-ss fw-bold rounded-pill ms-2">
+                                            Kelas {d?.tingkat} {d?.jurusan?.kode ? d?.jurusan?.kode : ""}
+                                          </div>
+                                        </>
                                       )}
                                     </div>
-                                    {/* Progress bar: progress belajar siswa (berdasarkan topik dibaca) */}
-                                    {(() => {
-                                      const progress = progressMap[d.id] ?? 0;
-                                      return (
+                                    {/* Progress Bar */}
+                                    {user?.role !== "guru" && user?.role !== "admin" && (
+                                      totalTopik > 0 ? (
                                         <div className="d-flex align-items-center w-100">
-                                          <div className="progress flex-grow-1" style={{ height: 8, borderRadius: 8, background: '#e9ecef' }}>
+                                          <div
+                                            className="progress flex-grow-1"
+                                            style={{ height: 8, borderRadius: 8, background: "#e9ecef" }}
+                                          >
                                             <div
                                               className="progress-bar bg-primary"
                                               role="progressbar"
@@ -572,10 +907,16 @@ const index = ({ nav, m_ta_id }) => {
                                               aria-valuemax="100"
                                             ></div>
                                           </div>
-                                          <span className="ms-3 fw-bold" style={{ minWidth: 40, color: '#2c3252' }}>{progress}%</span>
+                                          <span className="ms-3 fw-bold" style={{ minWidth: 40, color: "#2c3252" }}>
+                                            {progress}%
+                                          </span>
                                         </div>
-                                      );
-                                    })()}
+                                      ) : (
+                                        <div className="text-muted small fst-italic">
+                                          Belum ada topik pada materi ini
+                                        </div>
+                                      )
+                                    )}
                                   </div>
                                 </a>
                               </Link>
@@ -584,10 +925,6 @@ const index = ({ nav, m_ta_id }) => {
                         );
                       })}
                   </>
-                ) : (
-                  <div className="h-auto">
-                    <Empty />
-                  </div>
                 )}
               </div>
             )}
