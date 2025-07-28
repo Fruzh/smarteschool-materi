@@ -1,4 +1,4 @@
-## SmartESchool Project Structure
+## Smarteschool Project Structure
 ```
 smarteschool-client-smkn1cibinong
 ├── pages
