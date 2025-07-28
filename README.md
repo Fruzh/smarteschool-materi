@@ -1,5 +1,5 @@
 ## SmartESchool Project Structure
-
+```
 smarteschool-client-smkn1cibinong
 ├── pages
 │   └── smartschool
@@ -7,4 +7,5 @@ smarteschool-client-smkn1cibinong
 │           ├── [id]
 │           │   └── index.js
 │           └── index.js
-├── package.json
+└── package.json
+```
