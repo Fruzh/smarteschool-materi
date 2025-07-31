@@ -12,8 +12,15 @@ import {
   FaQuestion,
   FaTrash,
   FaTrashAlt,
-  FaSearch
+  FaSearch,
+  FaRegCalendarAlt,
+  FaTimes
 } from "react-icons/fa";
+import { DateRangePicker, DateRange } from 'react-date-range';
+import 'react-date-range/dist/styles.css';
+import 'react-date-range/dist/theme/default.css';
+import { format } from 'date-fns';
+import { useRef } from 'react';
 import getConfig from "next/config";
 import AnimatePage from "../../../../components/Shared/AnimatePage/AnimatePage";
 import Layout from "../../../../components/Layout/Layout";
@@ -245,21 +252,107 @@ const index = ({ id }) => {
   const progress = totalTopik > 0 ? Math.round((topikDibaca / totalTopik) * 100) : 0;
 
   const [searchMateri, setSearchMateri] = useState('');
+  // Date picker state
+  const getInitialDateRange = () => {
+    if (typeof window === 'undefined') return [{ startDate: null, endDate: null, key: 'selection' }];
+    try {
+      const val = localStorage.getItem('dateRange');
+      if (val) {
+        const parsed = JSON.parse(val);
+        if (Array.isArray(parsed) && parsed[0] && typeof parsed[0] === 'object') return parsed;
+      }
+      return [{ startDate: null, endDate: null, key: 'selection' }];
+    } catch {
+      return [{ startDate: null, endDate: null, key: 'selection' }];
+    }
+  };
+  const [dateRange, setDateRange] = useState(getInitialDateRange());
+  const [tempDateRange, setTempDateRange] = useState(getInitialDateRange());
+  // Sinkronisasi dateRange ke localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('dateRange', JSON.stringify(dateRange));
+    }
+  }, [dateRange]);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const datePickerRef = useRef(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+      setIsTablet(window.innerWidth < 1000);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  const handleClearDate = () => {
+    setDateRange([{ startDate: null, endDate: null, key: 'selection' }]);
+    setTempDateRange([{ startDate: null, endDate: null, key: 'selection' }]);
+    setShowDatePicker(false);
+  };
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(event.target)) {
+        setShowDatePicker(false);
+        setTempDateRange(dateRange);
+      }
+    };
+    if (showDatePicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showDatePicker, dateRange]);
+  const handleDone = () => {
+    setDateRange(tempDateRange);
+    setShowDatePicker(false);
+  };
 
   const filteredBab = useMemo(() => {
-    if (!searchMateri.trim()) return bab;
-    const searchLower = searchMateri.toLowerCase();
-    return bab?.map(babItem => {
-      if (babItem.judul.toLowerCase().includes(searchLower)) {
-        return babItem;
-      }
-      const filteredTopik = babItem.topik?.filter(topik => topik.judul.toLowerCase().includes(searchLower)) || [];
-      if (filteredTopik.length > 0) {
-        return { ...babItem, topik: filteredTopik };
-      }
-      return null;
-    }).filter(Boolean);
-  }, [bab, searchMateri]);
+    let result = bab;
+    // Filter by search
+    if (searchMateri.trim()) {
+      const searchLower = searchMateri.toLowerCase();
+      result = result?.map(babItem => {
+        if (babItem.judul.toLowerCase().includes(searchLower)) {
+          return babItem;
+        }
+        const filteredTopik = babItem.topik?.filter(topik => topik.judul.toLowerCase().includes(searchLower)) || [];
+        if (filteredTopik.length > 0) {
+          return { ...babItem, topik: filteredTopik };
+        }
+        return null;
+      }).filter(Boolean);
+    }
+    // Filter by date picker
+    if (dateRange[0].startDate && dateRange[0].endDate) {
+      const start = new Date(format(dateRange[0].startDate, 'yyyy-MM-dd'));
+      const end = new Date(format(dateRange[0].endDate, 'yyyy-MM-dd'));
+      const startDate = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      const endDate = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      result = result?.map(babItem => {
+        const filteredTopik = (babItem.topik || []).filter(topik => {
+          if (!topik.materiKesimpulan) return false;
+          const waktuMulai = topik.materiKesimpulan.waktuMulai;
+          const waktuSelesai = topik.materiKesimpulan.waktuSelesai;
+          const waktuArr = [waktuMulai, waktuSelesai].filter(Boolean);
+          return waktuArr.some(waktu => {
+            const tgl = new Date(waktu);
+            const tglDate = new Date(tgl.getFullYear(), tgl.getMonth(), tgl.getDate());
+            return tglDate >= startDate && tglDate <= endDate;
+          });
+        });
+        if (filteredTopik.length > 0) {
+          return { ...babItem, topik: filteredTopik };
+        }
+        return null;
+      }).filter(Boolean);
+    }
+    return result;
+  }, [bab, searchMateri, dateRange]);
 
   return (
     <Layout
@@ -394,68 +487,96 @@ const index = ({ id }) => {
                   </p>
                 </div>
               </div>
-              <div className="card-footer card-footer-ss card-kelas-footer py-0 px-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center align-items-stretch">
-                <div className="kelas-nav d-flex flex-column flex-lg-row flex-lg-fill align-items-stretch gap-3">
-                  {/* BAB Section */}
+              <div className="card-footer card-footer-ss card-kelas-footer py-0 px-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center align-items-stretch"
+                style={{
+                  ...(typeof window !== 'undefined' && window.innerWidth < 992
+                    ? { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }
+                    : {})
+                }}
+              >
+                <div className="kelas-nav d-flex flex-column flex-lg-row flex-lg-fill align-items-stretch gap-3"
+                  style={{
+                    ...(typeof window !== 'undefined' && window.innerWidth < 992
+                      ? { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }
+                      : {})
+                  }}
+                >
                   <div
-                    className="color-primary d-flex align-items-center flex-shrink-0"
-                    data-joyride="jumlah-bab"
+                    className="d-flex flex-column flex-md-row flex-lg-fill align-items-stretch gap-3"
+                    style={{
+                      ...(typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth < 992
+                        ? { marginTop: '1rem' }
+                        : {})
+                    }}
                   >
+                    {/* BAB Section */}
                     <div
-                      className="rounded-circle bg-light-primary d-flex justify-content-center align-items-center me-2 fs-4"
-                      style={{ height: "35px", width: "35px" }}
+                      className="color-primary d-flex align-items-center flex-shrink-0"
+                      data-joyride="jumlah-bab"
                     >
-                      <FaBook />
+                      <div
+                        className="rounded-circle bg-light-primary d-flex justify-content-center align-items-center me-2 fs-4"
+                        style={{ height: "35px", width: "35px" }}
+                      >
+                        <FaBook />
+                      </div>
+                      <p className="mb-0 fs-18-ss fw-bold">{bab?.length || 0} BAB</p>
                     </div>
-                    <p className="mb-0 fs-18-ss fw-bold">{bab?.length || 0} BAB</p>
-                  </div>
 
-                  {/* Progress Section */}
-                  {(user?.role !== "guru" && user?.role !== "admin") && (
-                    <div className="text-primary d-flex justify-content-center flex-column flex-fill min-width-0 ms-2 ms-lg-4">
-                      {totalTopik > 0 && (
-                        <>
-                          <div className="d-flex align-items-center flex-wrap gap-3 fw-bold">
-                            <div className="d-flex align-items-center">
-                              <FaLightbulb />
-                              <p className="mb-0 ms-2 text-nowrap">{totalTopik} Topik</p>
+                    {/* Progress Section */}
+                    {(user?.role === "siswa") && (
+                      <div className="text-primary d-flex justify-content-center flex-column flex-fill min-width-0 ms-2 ms-lg-4">
+                        {totalTopik > 0 && (
+                          <>
+                            <div className="d-flex align-items-center flex-wrap gap-3 fw-bold">
+                              <div className="d-flex align-items-center">
+                                <FaLightbulb />
+                                <p className="mb-0 ms-2 text-nowrap">{totalTopik} Topik</p>
+                              </div>
+                              <div>
+                                -
+                              </div>
+                              <div className="d-flex align-items-center">
+                                <p className="mb-0 text-nowrap">{topikDibaca} Selesai Dibaca</p>
+                              </div>
                             </div>
-                            <div>
-                              -
-                            </div>
-                            <div className="d-flex align-items-center">
-                              <p className="mb-0 text-nowrap">{topikDibaca} Selesai Dibaca</p>
-                            </div>
-                          </div>
-                          <div className="d-flex align-items-center w-100">
-                            <div
-                              className="progress flex-grow-1"
-                              style={{ height: 8, borderRadius: 8, background: '#e9ecef', width: '100%', maxWidth: '300px' }}
-                            >
+                            <div className="d-flex align-items-center w-100">
                               <div
-                                className="progress-bar bg-primary"
-                                role="progressbar"
-                                style={{ width: `${progress}%`, borderRadius: 8 }}
-                                aria-valuenow={progress}
-                                aria-valuemin="0"
-                                aria-valuemax="100"
-                              ></div>
+                                className="progress flex-grow-1"
+                                style={{
+                                  height: 8,
+                                  borderRadius: 8,
+                                  background: '#e9ecef',
+                                  width: isMobile ? '100%' : '100%',
+                                  maxWidth: isMobile ? '100%' : '300px',
+                                  minWidth: 0
+                                }}
+                              >
+                                <div
+                                  className="progress-bar bg-primary"
+                                  role="progressbar"
+                                  style={{ width: `${progress}%`, borderRadius: 8 }}
+                                  aria-valuenow={progress}
+                                  aria-valuemin="0"
+                                  aria-valuemax="100"
+                                ></div>
+                              </div>
+                              <span className="ms-3 fw-bold text-nowrap" style={{ minWidth: 40, color: '#2c3252' }}>
+                                {progress}%
+                              </span>
                             </div>
-                            <span className="ms-3 fw-bold text-nowrap" style={{ minWidth: 40, color: '#2c3252' }}>
-                              {progress}%
-                            </span>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
                   {/* Search Form */}
                   <div
-                    className={`d-flex align-items-center ${user?.role !== "guru" && user?.role !== "admin" ? 'ms-lg-auto' : 'flex-shrink-0'}`}
-                    style={{ minWidth: '250px' }}
+                    className={`d-flex align-items-center gap-2 ${user?.role === "siswa" ? 'ms-lg-auto' : 'flex-shrink-0'}`}
+                    style={{ minWidth: isMobile ? undefined : '250px' }}
                   >
-                    <form onSubmit={e => e.preventDefault()} className="w-100">
+                    <form onSubmit={e => e.preventDefault()} className="w-100" style={{ flex: 1, width: isMobile ? 'calc(100% - 100px)' : '100%' }}>
                       <input
                         type="text"
                         className="form-control form-search-perpustakaan fw-bold w-100 ms-2 ms-sm-3 ms-lg-4 pe-3 pe-sm-2 pe-lg-4 fs-6 fs-sm-5"
@@ -468,9 +589,119 @@ const index = ({ id }) => {
                           maxWidth: '100%',
                         }}
                       />
-
                       <button type="submit" className="d-none">Cari</button>
                     </form>
+                    {/* Date Picker Input */}
+                    {user?.role === "siswa" ? (
+                      <div className="position-relative" style={{ minWidth: isMobile ? 48 : 180, width: isMobile ? 48 : undefined, position: 'relative' }}>
+                        <FaRegCalendarAlt
+                          className="position-absolute"
+                          style={{
+                            left: isMobile ? 8 : 12,
+                            top: '50%',
+                            transform: isMobile ? 'translate(-40px, -50%)' : 'translateY(-50%)',
+                            color: '#6c757d',
+                            fontSize: isMobile ? '1.1rem' : '1.2rem',
+                            pointerEvents: 'none',
+                            zIndex: 2,
+                          }}
+                        />
+                        <input
+                          type="text"
+                          className="form-control fw-semibold text-dark border rounded ps-5 py-2"
+                          value={
+                            dateRange[0].startDate && dateRange[0].endDate
+                              ? `${format(dateRange[0].startDate, 'dd/MM/yyyy')} - ${format(dateRange[0].endDate, 'dd/MM/yyyy')}`
+                              : ''
+                          }
+                          placeholder={isMobile ? '' : 'Pilih Rentang Tanggal'}
+                          onClick={() => setShowDatePicker(!showDatePicker)}
+                          readOnly
+                          style={{
+                            cursor: 'pointer',
+                            backgroundColor: '#fff',
+                            paddingLeft: isMobile ? 32 : '40px',
+                            paddingRight: isMobile ? 32 : '40px',
+                            fontSize: isMobile ? '14px' : 'inherit',
+                            minWidth: isMobile ? 48 : undefined,
+                            width: isMobile ? 48 : undefined,
+                            height: isMobile ? 40 : undefined,
+                            position: isMobile ? 'relative' : undefined,
+                            transform: isMobile ? 'translateX(-40px)' : undefined,
+                            zIndex: 1
+                          }}
+                        />
+                        {(dateRange[0].startDate && dateRange[0].endDate) && (
+                          <FaTimes
+                            size={isMobile ? 16 : 19}
+                            className="position-absolute"
+                            style={{
+                              right: isMobile ? 8 : 12,
+                              top: '50%',
+                              transform: isMobile ? 'translate(-10px, -50%)' : 'translateY(-50%)',
+                              color: '#dc3545',
+                              cursor: 'pointer',
+                              zIndex: 3,
+                            }}
+                            onClick={handleClearDate}
+                            title="Hapus Rentang Tanggal"
+                          />
+                        )}
+                        {showDatePicker && (
+                          <div
+                            className="position-absolute mt-2 border shadow rounded bg-white p-3"
+                            style={{
+                              zIndex: 1000,
+                              width: isTablet ? 'fit-content' : 'auto',
+                              maxWidth: isTablet ? '95vw' : 'none',
+                              right: 0,
+                              left: 'auto',
+                            }}
+                            ref={datePickerRef}
+                          >
+                            {isTablet ? (
+                              <DateRange
+                                editableDateInputs={true}
+                                onChange={item => setTempDateRange([item.selection])}
+                                moveRangeOnFirstSelection={false}
+                                ranges={tempDateRange}
+                              />
+                            ) : (
+                              <DateRangePicker
+                                onChange={item => setTempDateRange([item.selection])}
+                                showSelectionPreview={true}
+                                moveRangeOnFirstSelection={false}
+                                months={2}
+                                ranges={tempDateRange}
+                                direction="horizontal"
+                              />
+                            )}
+                            <div className="d-flex justify-content-end gap-2 mt-3" style={{ flexWrap: isMobile ? "wrap" : "nowrap" }}>
+                              <div style={{ flex: isMobile ? 1 : "unset" }}>
+                                <button
+                                  type="button"
+                                  className="btn btn-outline-secondary px-4 w-100"
+                                  style={{ borderRadius: "10px" }}
+                                  onClick={() => {}}
+                                >
+                                  Batal
+                                </button>
+                              </div>
+                              <div style={{ flex: isMobile ? 1 : "unset" }}>
+                                <button
+                                  type="button"
+                                  className="btn btn-primary px-4 w-100"
+                                  style={{ borderRadius: "10px" }}
+                                  onClick={handleDone}
+                                >
+                                  Selesai
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
@@ -595,7 +826,7 @@ const index = ({ id }) => {
                           const isOpened = !isLocked && !!e.materiKesimpulan;
 
                           return (
-                            <div className="col-md-3" key={`${idx}-${e.id}`}>
+                            <div className="col-12 col-sm-12 col-md-6 col-lg-4 col-xl-3" key={`${idx}-${e.id}`}>
                               {user?.role === "siswa" && isLocked ? (
                                 <a className="text-decoration-none">
                                   <div className="card-detail-materi position-relative shadow-dark-ss">
@@ -687,7 +918,7 @@ const index = ({ id }) => {
 
                         {user?.role === "guru" &&
                           (!materi?.sekolah || user?.id === materi?.user?.id) && (
-                            <div className="col-md-3">
+                            <div className="col-12 col-sm-12 col-md-6 col-lg-4 col-xl-3">
                               <div
                                 className="card-detail-materi position-relative tambah-bab"
                                 data-joyride="btn-tambah-topik"
@@ -731,7 +962,7 @@ const index = ({ id }) => {
                     ) : (
                       user?.role === "guru" &&
                       (!materi?.sekolah || user?.id === materi?.user?.id) && (
-                        <div className="col-md-3">
+                        <div className="col-12 col-sm-12 col-md-6 col-lg-4 col-xl-3">
                           <a
                             className="text-decoration-none"
                             data-joyride="btn-tambah-topik"
