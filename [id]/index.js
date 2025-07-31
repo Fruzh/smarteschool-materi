@@ -740,11 +740,13 @@ const index = ({ id }) => {
                   </div>
                   <div className="col-12 text-center">
                     <h4 className="fw-black color-dark mb-2">
-                      {searchMateri
-                        ? "Tidak Ada Materi yang Cocok"
-                        : "Belum Ada Materi Yang Dibuat"}
+                      {dateRange[0]?.startDate && dateRange[0]?.endDate
+                        ? "Tidak ada materi yang dikerjakan pada tanggal ini"
+                        : searchMateri
+                          ? "Tidak Ada Materi yang Cocok"
+                          : "Belum Ada Materi Yang Dibuat"}
                     </h4>
-                    {!searchMateri && (
+                    {!searchMateri && !dateRange[0]?.startDate && !dateRange[0]?.endDate && user?.role === "guru" && (
                       <p className="fw-bold">
                         Tekan tombol {""}
                         <span
@@ -755,7 +757,7 @@ const index = ({ id }) => {
                         >
                           Buat BAB
                         </span>
-                        {""} untuk membuat materi
+                        {""} untuk membuat materi.
                       </p>
                     )}
                   </div>
