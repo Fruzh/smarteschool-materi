@@ -1,4 +1,4 @@
-# Tutorial Setup Smarteschool Project
+# Tutorial Setup Smarteschool - Materi
 ![Preview Materi](https://i.imgur.com/r5GITZB.png)
 ## Struktur Project
 ```
