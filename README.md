@@ -1,5 +1,5 @@
 # Tutorial Setup Smarteschool Project
-
+![Preview Materi](https://i.imgur.com/r5GITZB.png)
 ## Struktur Project
 ```
 smarteschool-client-smkn1cibinong
