@@ -506,7 +506,6 @@ const index = ({ nav, m_ta_id }) => {
     }
     if (statusMateri) {
       filteredMateri = filteredMateri.filter((d) => {
-        // Cari detail materi yang sesuai
         const detail = detailMateriList.find((item) => item?.materi?.id === d.id);
         let totalTopik = 0;
         let topikDibaca = 0;
@@ -597,7 +596,6 @@ const index = ({ nav, m_ta_id }) => {
                   </button>
                   <div style={{ display: asideDropdownOpen ? 'block' : 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', borderRadius: 16, background: '#fff', overflow: 'visible', transition: 'none', position: 'relative' }}>
                     <div className="card card-ss p-4 border-0 bg-white" style={{ borderRadius: 16, boxShadow: 'none', minHeight: 0 }}>
-                      {/* ...existing aside content... */}
                       {/* Sort Topik */}
                       <div className="mb-4">
                         <div className="fw-bold fs-5 mb-3" style={{ color: '#2c3252' }}>Urutkan</div>
@@ -669,7 +667,6 @@ const index = ({ nav, m_ta_id }) => {
               ) : (
                 <aside className="col-lg-3 mb-4">
                   <div className="card card-ss p-4" ref={cardRef} style={{ borderRadius: 24, minHeight: 300, position: 'sticky', top: stickyTop, zIndex: 10 }}>
-                    {/* ...existing aside content... */}
                     {/* Sort Topik */}
                     <div className="mb-4">
                       <div className="fw-bold fs-5 mb-3" style={{ color: '#2c3252' }}>Urutkan</div>
@@ -887,8 +884,6 @@ const index = ({ nav, m_ta_id }) => {
                 {filteredMateri?.length > 0 &&
                   !loading &&
                   filteredMateri?.map((d, idx) => {
-                    // ...existing code for each card...
-                    // Copy the card content from previous map, but change className="col-md-4" to nothing (handled by grid)
                     const detail = detailMateriList.find((item) => item?.materi?.id === d.id);
                     let totalTopik = 0;
                     let topikDibaca = 0;
