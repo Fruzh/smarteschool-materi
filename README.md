@@ -1,5 +1,6 @@
 # Smarteschool - Materi
 > **Versi Lengkap:** Akses private repository di: https://github.com/Fruzh/smarteschool-client-materi.git
+
 ![Preview Materi](https://i.imgur.com/r5GITZB.png)
 
 ## Struktur Project
@@ -65,3 +66,4 @@ Pastikan:
 npm run dev
 ```
 Website akan berjalan di: **http://localhost:2025** (sesuai konfigurasi di package.json)
+
