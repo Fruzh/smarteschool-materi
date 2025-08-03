@@ -19,6 +19,55 @@ smarteschool-client-smkn1cibinong
 │           └── index.js
 └── package.json
 ```
+
+## Cara Kerja Sistem
+Sistem materi ini bekerja dengan struktur hierarki: **Materi → Bab → Topik**
+
+### Konsep Dasar:
+- Setiap **materi** bisa memiliki multiple **bab**
+- Setiap **bab** bisa memiliki multiple **topik**
+- Setiap **topik** memiliki data waktu dibuat dan waktu selesai (dibaca)
+
+### Fitur Progress Tracking:
+- Ketika topik memiliki waktu selesai, topik tersebut masuk ke kategori "sudah dibaca"
+- Progress bar dihitung berdasarkan perbandingan topik yang sudah dibaca vs total topik
+- Di halaman `/materi`, data JSON dikumpulkan per ID materi untuk menghitung progress bar
+
+### Perubahan Utama:
+- **Sebelumnya**: `/materi` hanya menampilkan list materi
+- **Sekarang**: `/materi` menampilkan materi lengkap dengan data bab dan topik + progress bar
+
+### Fitur Filter & Sorting:
+
+#### **Urutkan:** (Pilih salah satu)
+- **Terbaru**: Berdasarkan topik yang baru ditambahkan
+- **Terlama**: Berdasarkan topik terlama yang ditambahkan  
+- **Terakhir Dikerjakan**: Berdasarkan topik yang terakhir dikerjakan
+
+#### **Filter Tanggal:** (Opsional - bisa dikombinasikan dengan urutan apapun)
+- **Dikerjakan pada**: Filter berdasarkan rentang tanggal tertentu
+
+*Contoh: Bisa memilih "Terbaru" + "Dikerjakan pada 1-15 Januari" untuk melihat topik terbaru yang dikerjakan dalam rentang tanggal tersebut*
+
+#### **Status:**
+- **Semua**: Menampilkan materi belum dan sudah selesai
+- **Belum Selesai**: Materi dengan progress bar dibawah 100%
+- **Sudah Selesai**: Materi dengan progress bar sudah 100%
+
+### Fitur Pencarian:
+- **Di `/materi`**: Pencarian berdasarkan nama materi/mapel
+- **Di `/materi/[id]`**: Pencarian berdasarkan nama bab dan topik
+
+### Fitur Tanggal Terintegrasi:
+Ketika filter "Dikerjakan pada" digunakan dengan rentang tanggal:
+1. Di halaman `/materi/index.js` akan menampilkan topik mana yang dikerjakan pada tanggal tersebut
+2. Ketika masuk ke materi tertentu, halaman akan otomatis menampilkan filter berdasarkan tanggal yang dipilih
+3. Data filter tersimpan di **LocalStorage** sehingga konsisten antar halaman
+
+### Fitur Tambahan:
+- **Mobile responsive**: Dropdown khusus untuk layar mobile
+- **LocalStorage**: Menyimpan pengaturan filter untuk konsistensi antar halaman
+
 ## Langkah-langkah Setup
 ### 1. Clone Repository Utama
 ```bash
@@ -66,4 +115,5 @@ Pastikan:
 npm run dev
 ```
 Website akan berjalan di: **http://localhost:2025** (sesuai konfigurasi di package.json)
+
 
