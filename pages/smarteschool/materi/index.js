@@ -246,6 +246,8 @@ const index = ({ nav, m_ta_id }) => {
   //         console.log(`  Terakhir dibaca ${lastReadTime} pada topik '${lastReadTopik}'`);
   //       }
   //     });
+  //     // Render all JSON data for debugging
+  //     console.log('Semua detailMateriList JSON:', JSON.stringify(detailMateriList, null, 2));
   //   }
   // }, [detailMateriList]);
 
@@ -879,8 +881,30 @@ const index = ({ nav, m_ta_id }) => {
                   gridTemplateColumns: `repeat(${cardGridCols}, 1fr)`,
                   gap: '1.5rem',
                 }}
-              >
+                >
                 {loading && <CardKelasSkeleton count={7} />}
+                {!loading && filteredMateri?.length === 0 && (
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div className="row justify-content-center mt-5">
+                      <div className="col-md-4 col-8 mb-3">
+                        <img
+                          src="/img/empty-state-buku.png"
+                          alt="empty-state"
+                          className="img-fluid"
+                        />
+                      </div>
+                      <div className="col-12 text-center">
+                        <h4 className="fw-black color-dark mb-2">
+                          {dateRange[0]?.startDate && dateRange[0]?.endDate
+                            ? "Tidak ada materi yang dikerjakan pada tanggal ini"
+                            : searchMateri
+                              ? "Tidak Ada Materi yang Cocok"
+                              : "Belum Ada Materi Yang Dibuat"}
+                        </h4>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {filteredMateri?.length > 0 &&
                   !loading &&
                   filteredMateri?.map((d, idx) => {
